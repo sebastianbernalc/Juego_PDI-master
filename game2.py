@@ -140,7 +140,7 @@ while running:
             kernel_erode = np.ones((5, 5), np.uint8)
             kernel_dilate = np.ones((10, 10), np.uint8)
             frame = frame_queue.get()
-            frame = cv2.rotate(frame, cv2.ROTATE_180)
+            frame = cv2.flip(frame, 1)
             
             # Convertimos la imagen a HSV
             hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
@@ -180,10 +180,8 @@ while running:
                     cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
                     if(x>218):
                         jugador1_rect.x=1192
-                    print(jugador1_rect.x)# Comprobar si el objeto azul está por encima o por debajo de la mitad del eje y
-                    
-                    
-                    if y>170:
+                    # Comprobar si el objeto azul está por encima o por debajo de la mitad del eje y
+                    if y<100:
                         if ~jugador1_salto:
                             jugador1_vel = 1.0
                             jugador1_salto = ~jugador1_salto
@@ -200,15 +198,16 @@ while running:
                 
                 jugador2_rect.x = int(x*(3500/640)-1500)
                 
+                
                 for contour in contours2:
                     x, y, w, h = cv2.boundingRect(contour)
                     cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+                    cv2.imshow('yellow detector', frame)
                     if(jugador2_rect.x<9):
                         jugador2_rect.x=9
-
                     
-                    print(y)# Comprobar si el objeto azul está por encima o por debajo de la mitad del eje y
-                    if y > 350:
+                    print(y)#Comprueba si supero limite en y para saltar
+                    if y < 100:
                         if ~jugador2_salto:
                             jugador2_vel = 1.0
                             jugador2_salto = ~jugador2_salto
