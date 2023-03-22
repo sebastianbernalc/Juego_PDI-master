@@ -4,7 +4,8 @@ import cv2
 import queue
 import threading
 
-# Inicializar el Pygame
+
+# Inicializar el Pygame(GAME)
 pygame.init()
 pygame.font.init()
 font = pygame.font.SysFont('Arial', 24)
@@ -34,6 +35,8 @@ balon_img = pygame.image.load('images/balon.png')
 porteria1_img = pygame.image.load('images/porteria1.png')
 porteria2_img = pygame.image.load('images/porteria2.png')
 gol_image = pygame.image.load("images/gol.png")
+audio=True
+
 
 # Redimensionar imagenes
 fondo_img = pygame.transform.scale(fondo_img, tam_screen)
@@ -116,44 +119,100 @@ pygame.display.update()
 frame_queue = queue.Queue()
 capture_thread = threading.Thread(target=capture_frames, args=(frame_queue,))
 capture_thread.start()
+pygame.mixer.music.load("fut.wav")
 
+# Reproduce la canción en bucle
+pygame.mixer.music.play(-1)
 # Establecer el ciclo de juego
 running = True
 while running:
+    
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
+            cv2.destroyAllWindows()
+            pygame.quit()
+            quit()
     
         # Inicializar la cola y el hilo de la cámara
-
+        
     if not frame_queue.empty():
+            kernel_erode = np.ones((5, 5), np.uint8)
+            kernel_dilate = np.ones((10, 10), np.uint8)
             frame = frame_queue.get()
-        # Configurar la cámara
-            hsv=cv2.cvtColor(frame,cv2.COLOR_BGR2HSV)
-
-            # Definir el rango de colores que se quiere detectar (en este ejemplo, se detectará el color azul)
-            lower_blue = np.array([110,50,50])
-            upper_blue = np.array([130,255,255])
-            # Aplicar una máscara de color azul al fotograma
-            mask = cv2.inRange(hsv, lower_blue, upper_blue)
-            # Aplicar una operación de erosión y dilatación para eliminar el ruido
-            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (10, 10))
-            mask = cv2.erode(mask, kernel, iterations=4)
-            mask = cv2.dilate(mask, kernel, iterations=4)
-            # Si se encuentra un objeto azul en la imagen, mover el objeto en el juego hacia ese objeto
+            frame = cv2.rotate(frame, cv2.ROTATE_180)
             
+            # Convertimos la imagen a HSV
+            hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
-            # Encontrar el centro del contorno más grande
-            M = cv2.moments(mask)
-            if M["m00"] != 0:
-                cx = int(M["m10"] / M["m00"])
-                cy = int(M["m01"] / M["m00"])
 
-                # Mover el objeto en el juego hacia el centro del objeto azul
-                if jugador1_rect.centerx < cx:
-                    jugador1_rect.centerx += 7
-                elif jugador1_rect.centerx > cx:
-                    jugador1_rect.centerx -= 7
+            # Definimos el rango de colores que queremos detectar (en este caso, amarillo)
+            lower_yellow = np.array([20, 100, 100])
+            upper_yellow = np.array([40, 255, 255])
+            lower_blue = np.array([100, 50, 50])
+            upper_blue = np.array([130, 255, 255])
+            # Aplicamos una máscara para obtener solo los píxeles de color amarillo
+            mask = cv2.inRange(hsv, lower_yellow, upper_yellow)
+            mask2=cv2.inRange(hsv, lower_blue, upper_blue)
+            # Aplicamos erosión y dilatación para eliminar el ruido y mejorar la detección
+            mask = cv2.erode(mask, kernel_erode, iterations=2)
+            mask = cv2.dilate(mask, kernel_dilate, iterations=2)
+            mask2 = cv2.erode(mask2, kernel_erode, iterations=2)
+            mask2 = cv2.dilate(mask2, kernel_dilate, iterations=2)
+
+            # Buscamos el contorno del objeto de color amarillo
+            contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            contours2, _ = cv2.findContours(mask2, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+            # Si hemos encontrado algún contorno
+            if contours:
+                # Obtenemos el contorno más grande (el objeto de color amarillo)
+                largest_contour = max(contours, key=cv2.contourArea)
+
+                # Obtenemos el rectángulo que engloba al contorno
+                x, y, w, h = cv2.boundingRect(largest_contour)
+
+                # Ajustamos la posición y tamaño del objeto de color amarillo para que se ajuste a la pantalla del juego
+                jugador1_rect.x = int(x * 3500 / 640)
+                
+                
+                for contour in contours:
+                    x, y, w, h = cv2.boundingRect(contour)
+                    cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+                    if(x>218):
+                        jugador1_rect.x=1192
+                    print(jugador1_rect.x)# Comprobar si el objeto azul está por encima o por debajo de la mitad del eje y
+                    if y>180:
+                        if ~jugador1_salto:
+                            jugador1_vel = 1.0
+                            jugador1_salto = ~jugador1_salto
+                   
+            
+            if contours2:
+                # Obtenemos el contorno más grande (el objeto de color amarillo)
+                largest_contour = max(contours2, key=cv2.contourArea)
+
+                # Obtenemos el rectángulo que engloba al contorno
+                x, y, w, h = cv2.boundingRect(largest_contour)
+
+                # Ajustamos la posición y tamaño del objeto de color amarillo para que se ajuste a la pantalla del juego
+                
+                jugador2_rect.x = int(x*(3500/640)-1500)
+                
+                for contour in contours2:
+                    x, y, w, h = cv2.boundingRect(contour)
+                    cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+                    if(jugador2_rect.x<9):
+                        jugador2_rect.x=9
+
+                    
+                    print(y)# Comprobar si el objeto azul está por encima o por debajo de la mitad del eje y
+                    if y > 350:
+                        if ~jugador2_salto:
+                            jugador2_vel = 1.0
+                            jugador2_salto = ~jugador2_salto
+                        
+                  
 
 
     # Mover jugadores
@@ -254,11 +313,18 @@ while running:
         # Aumentar contador de gol
         cont_jugador2 += 1
         text2 = font.render("Penaldo: " + str(cont_jugador2), True, (255, 255, 255))
-
+        
         # Mostrar animacion de gol
         screen.blit(gol_image, gol_rect)
         pygame.display.update()
-        pygame.time.delay(1000)
+        pygame.mixer.music.load("ronaldo.wav")
+        pygame.mixer.music.play()
+        pygame.time.delay(2500)
+        pygame.mixer.music.load("fut.wav")
+
+# Reproduce la canción en bucle
+        pygame.mixer.music.play(-1)
+        pygame.time.delay(500)
 
         # Restablecer variables
         t_balon = 0.0
@@ -279,11 +345,18 @@ while running:
         # Aumentar contador de gol
         cont_jugador1 += 1
         text1 = font.render("Frionel: " + str(cont_jugador1), True, (255, 255, 255))
-
+        
         # Mostrar animacion de gol
         screen.blit(gol_image, gol_rect)
         pygame.display.update()
-        pygame.time.delay(1000)
+        pygame.mixer.music.load("messi.wav")
+        pygame.mixer.music.play()
+        pygame.time.delay(3000)
+        pygame.mixer.music.load("fut.wav")
+
+# Reproduce la canción en bucle
+        pygame.mixer.music.play(-1)
+        pygame.time.delay(500)
 
         # Restablecer variables
         t_balon = 0.0
@@ -363,6 +436,7 @@ while running:
     screen.blit(porteria2_img, porteria2_rect)
     screen.blit(text1, (0, 0))
     screen.blit(text2, (0, 20))
+
 
     # Actualizar pantalla
     pygame.display.flip()

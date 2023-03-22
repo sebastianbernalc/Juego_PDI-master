@@ -5,28 +5,35 @@ import queue
 import threading
 
 
-
-# Inicializar el Pygame
+# Inicializar el Pygame(GAME)
 pygame.init()
 pygame.font.init()
 font = pygame.font.SysFont('Arial', 24)
 
-# Configurar la pantalla a 1280x600
+# Configurar la pantalla a 1280x600.
 tam_screen = (1280, 600)
 screen = pygame.display.set_mode(tam_screen)
 pygame.display.set_caption('Football Head')
 
+# Función que lee continuamente la cámara y escribe los fotogramas en la cola
 def capture_frames(queue):
     camera = cv2.VideoCapture(0)
+    camera.set(3, 1280) # ancho de la cámara
+    camera.set(4, 600) # alto de la cámara
+    camera2 = cv2.VideoCapture(1)
+    camera2.set(3, 1280) # ancho de la cámara
+    camera2.set(4, 600) # alto de la cámara
     while True:
         ret, frame = camera.read()
+        ret2, frame2 = camera2.read()
         if ret:
+            queue.put(frame2)
             queue.put(frame)
         else:
+            
             break
     camera.release()
-
-
+    camera2.release()
 
 # Cargar imagenes
 fondo_img = pygame.image.load('images/fondo.png')
@@ -90,8 +97,6 @@ jugador2_y0 = 400
 balon_x0 = 600
 balon_y0 = 450
 
-
-
 max_salto = 35.0
 g = 9.8
 theta = 90.0
@@ -117,52 +122,79 @@ red2 = pygame.Rect(porteria2_rect.x+100, porteria2_rect.y+50, 20, porteria2_rect
 pygame.draw.rect(screen, (255, 0, 0), red2, 2)
 pygame.display.update()
 
-def pdi():
-    frame = frame_queue.get()
-    # Configurar la cámara
-    hsv=cv2.cvtColor(frame,cv2.COLOR_BGR2HSV)
-
-    # Definir el rango de colores que se quiere detectar (en este ejemplo, se detectará el color azul)
-    lower_blue = np.array([110,50,50])
-    upper_blue = np.array([130,255,255])
-    # Aplicar una máscara de color azul al fotograma
-    mask = cv2.inRange(hsv, lower_blue, upper_blue)
-    # Aplicar una operación de erosión y dilatación para eliminar el ruido
-    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (10, 10))
-    mask = cv2.erode(mask, kernel, iterations=4)
-    mask = cv2.dilate(mask, kernel, iterations=4)
-    # Si se encuentra un objeto azul en la imagen, mover el objeto en el juego hacia ese objeto
-    
-
-    # Encontrar el centro del contorno más grande
-    M = cv2.moments(mask)
-    if M["m00"] != 0:
-        cx = int(M["m10"] / M["m00"])
-        cy = int(M["m01"] / M["m00"])
-
-        # Mover el objeto en el juego hacia el centro del objeto azul
-        if jugador1_rect.centerx < cx:
-            jugador1_rect.centerx += 7
-        elif jugador1_rect.centerx > cx:
-            jugador1_rect.centerx -= 7
-
-
-# Inicializar la cola y el hilo de la cámara
 frame_queue = queue.Queue()
 capture_thread = threading.Thread(target=capture_frames, args=(frame_queue,))
 capture_thread.start()
+
+
+
 # Establecer el ciclo de juego
 running = True
 while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
-     
+    
+        # Inicializar la cola y el hilo de la cámara
+
     if not frame_queue.empty():
             frame = frame_queue.get()
-            pdi()
+            
 
-    
+            
+            # Configurar la cámara
+            hsv=cv2.cvtColor(frame,cv2.COLOR_BGR2HSV)
+           
+
+            # Definir el rango de colores que se quiere detectar (en este ejemplo, se detectará el color azul)
+            lower_blue = np.array([110,50,50])
+            upper_blue = np.array([130,255,255])
+
+            lower_yellow = np.array([20, 100, 100])
+            upper_yellow = np.array([30, 255, 255])
+
+            # Aplicar una máscara de color azul al fotograma
+            mask = cv2.inRange(hsv, lower_blue, upper_blue)
+            # Aplicar una operación de erosión y dilatación para eliminar el ruido
+            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (10, 10))
+            mask = cv2.erode(mask, kernel, iterations=4)
+            mask = cv2.dilate(mask, kernel, iterations=4)
+            
+
+            # Si se encuentra un objeto azul en la imagen, mover el objeto en el juego hacia ese objeto
+            contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)  
+           
+            # Encontrar el centro del contorno más grande
+            M = cv2.moments(mask)
+            if M["m00"] != 0:
+                cx = int(M["m10"] / M["m00"])
+                cy = int(M["m01"] / M["m00"])
+                print(cx,"----",jugador1_rect.centerx)
+                if cx>550:
+                    print("izquierda")
+                else:
+                    print("Derecha")
+
+                # Mover el objeto en el juego hacia el centro del objeto azul
+                if jugador1_rect.centerx < cx:
+                    jugador1_rect.x += 7
+                elif jugador1_rect.centerx > cx:
+                    jugador1_rect.x -= 7
+                    # Iterar a través de los contornos y dibujar un rectángulo alrededor de ellos
+                for contour in contours:
+                    x, y, w, h = cv2.boundingRect(contour)
+                    cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+
+                    # Comprobar si el objeto azul está por encima o por debajo de la mitad del eje y
+                    if y < frame.shape[0] / 2:
+                        if ~jugador1_salto:
+                            jugador1_vel = 1.0
+                            jugador1_salto = ~jugador1_salto
+                        print("Up")
+                    else:
+                        print("Down")
+                
+
 
     # Mover jugadores
     keys = pygame.key.get_pressed()
@@ -361,7 +393,6 @@ while running:
             jugador2_colision = ~jugador2_colision
         else:
             jugador2_colision = ~jugador2_colision
-    parte_image=pdi()
 
     # Dibujar objetos
     screen.blit(fondo_img, (0, 0))
@@ -375,4 +406,3 @@ while running:
 
     # Actualizar pantalla
     pygame.display.flip()
-
