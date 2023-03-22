@@ -174,15 +174,16 @@ while running:
 
                 # Ajustamos la posición y tamaño del objeto de color amarillo para que se ajuste a la pantalla del juego
                 jugador1_rect.x = int(x * 3500 / 640)
-                
-                
+             
                 for contour in contours:
                     x, y, w, h = cv2.boundingRect(contour)
                     cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
                     if(x>218):
                         jugador1_rect.x=1192
                     print(jugador1_rect.x)# Comprobar si el objeto azul está por encima o por debajo de la mitad del eje y
-                    if y>180:
+                    
+                    
+                    if y>170:
                         if ~jugador1_salto:
                             jugador1_vel = 1.0
                             jugador1_salto = ~jugador1_salto
