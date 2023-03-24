@@ -1,23 +1,27 @@
 import cv2
+import numpy as np
 
-# Accede a la cámara
+# Define el rango de color amarillo que deseas detectar
+lower_blue = np.array([100, 50, 50])
+upper_blue = np.array([130, 255, 255])
+
 cap = cv2.VideoCapture(0)
 
 while True:
-    # Captura un cuadro de la cámara
     ret, frame = cap.read()
 
-    # Invierte la imagen
-    frame = cv2.flip(frame, 1)
+  
 
-    # Muestra la imagen invertida
-    cv2.imshow('Inverted Camera', frame)
+    # Convierte la imagen a espacio de coqlor HSV
+    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+    mask2=cv2.inRange(hsv, lower_blue, upper_blue)
+    cv2.imshow('yellow detector', hsv)
+    
 
-    # Si se presiona la tecla 'q', sal del bucle
-    if cv2.waitKey(1) == ord('q'):
+    # Salir del ciclo si se presiona la tecla 'q'
+    if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
-# Libera la cámara y cierra la ventana
 cap.release()
 cv2.destroyAllWindows()
 
