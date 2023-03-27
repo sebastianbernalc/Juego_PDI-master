@@ -166,7 +166,7 @@ while running:
         
     if not frame_queue.empty():  #verifica si la cola está vacía o no. 
             kernel_erode = np.ones((10, 10), np.uint8) #crean kernel para las operaciones de erosión en una matriz de 10x10 elementos, todos los cuales son unos.
-            kernel_dilate = np.ones((10, 10), np.uint8) #crean kernel para las operaciones de dilatacion en una matriz de 10x10 elementos, todos los cuales son unos.
+            kernel_dilate = np.ones((3, 3), np.uint8) #crean kernel para las operaciones de dilatacion en una matriz de 10x10 elementos, todos los cuales son unos.
             frame = frame_queue.get() #obtiene el siguiente marco de video de la cola
             frame = cv2.flip(frame, 1)# invierte la imagen
             
